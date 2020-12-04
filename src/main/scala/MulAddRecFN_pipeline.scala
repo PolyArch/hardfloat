@@ -1,7 +1,7 @@
 package hardfloat
 
-import Chisel._
-import chisel3.DontCare
+import chisel3._
+import chisel3.util._
 import chisel3.stage.{ChiselGeneratorAnnotation, ChiselStage}
 import consts._
 
@@ -20,7 +20,6 @@ class Stage1ToStage2IO(expWidth: Int, sigWidth: Int) extends Bundle
 
 class Stage2ToStage3IO(expWidth: Int, sigWidth: Int) extends Bundle
 {
-  //val mulAddResult = Output(UInt())
   val csaSum = Output(UInt())
   val csaCarry = Output(UInt())
   val ctrlSigs = Output(new MulAddRecFN_interIo(expWidth, sigWidth))
@@ -38,7 +37,8 @@ class Stage3ToStage4IO(expWidth: Int, sigWidth: Int) extends Bundle {
   val notCDom_signSigSum = Output(Bool())
   val notCDom_absSigSum = Output(UInt())
   val notCDom_reduced2AbsSigSum = Output(UInt())
-  val notCDom_normDistReduced2 = Output(UInt(6.W))
+
+  val notCDom_normDistReduced2 = Output(UInt(log2Up((sigWidth * 2 + 2 + 1) / 2).W))
   val notCDom_reduced4SigExtra = Output(Bool()) 
 
   val ctrlSigs = Output(new MulAddRecFN_interIo(expWidth, sigWidth))
@@ -84,7 +84,7 @@ class MulAddRecFN_pipeline_stage1(expWidth: Int, sigWidth: Int) extends Module {
   val signProd = rawA.sign ^ rawB.sign ^ io.in.bits.op(1)
   //*** REVIEW THE BIAS FOR 'sExpAlignedProd':
   val sExpAlignedProd =
-    rawA.sExp +& rawB.sExp + SInt(-(BigInt(1)<<expWidth) + sigWidth + 3)
+    rawA.sExp +& rawB.sExp + (-(BigInt(1)<<expWidth) + sigWidth + 3).S
 
   val doSubMags = signProd ^ rawC.sign ^ io.in.bits.op(0)
 
@@ -92,15 +92,15 @@ class MulAddRecFN_pipeline_stage1(expWidth: Int, sigWidth: Int) extends Module {
   //------------------------------------------------------------------------
   val sNatCAlignDist = sExpAlignedProd - rawC.sExp
   val posNatCAlignDist = sNatCAlignDist(expWidth + 1, 0)
-  val isMinCAlign = rawA.isZero || rawB.isZero || (sNatCAlignDist < SInt(0))
+  val isMinCAlign = rawA.isZero || rawB.isZero || (sNatCAlignDist < 0.S)
   val CIsDominant =
-    ! rawC.isZero && (isMinCAlign || (posNatCAlignDist <= UInt(sigWidth)))
+    ! rawC.isZero && (isMinCAlign || (posNatCAlignDist <= sigWidth.U))
   val CAlignDist =
     Mux(isMinCAlign,
-      UInt(0),
-      Mux(posNatCAlignDist < UInt(sigSumWidth - 1),
+      0.U,
+      Mux(posNatCAlignDist < (sigSumWidth - 1).U,
         posNatCAlignDist(log2Up(sigSumWidth) - 1, 0),
-        UInt(sigSumWidth - 1)
+        (sigSumWidth - 1).U
       )
     )
 //  val mainAlignedSigC =
@@ -148,12 +148,12 @@ class MulAddRecFN_pipeline_stage1(expWidth: Int, sigWidth: Int) extends Module {
   io.toStage2.bits.ctrlSigs.isInfC    := rawC.isInf
   io.toStage2.bits.ctrlSigs.isZeroC   := rawC.isZero
   io.toStage2.bits.ctrlSigs.sExpSum   :=
-    Mux(CIsDominant, rawC.sExp, sExpAlignedProd - SInt(sigWidth))
+    Mux(CIsDominant, rawC.sExp, sExpAlignedProd - sigWidth.S)
   io.toStage2.bits.ctrlSigs.doSubMags := doSubMags
   io.toStage2.bits.ctrlSigs.CIsDominant := CIsDominant
-  io.toStage2.bits.ctrlSigs.CDom_CAlignDist := DontCare
-  io.toStage2.bits.ctrlSigs.highAlignedSigC := DontCare
-  io.toStage2.bits.ctrlSigs.bit0AlignedSigC := DontCare
+  io.toStage2.bits.ctrlSigs.CDom_CAlignDist := 0.U //DontCare
+  io.toStage2.bits.ctrlSigs.highAlignedSigC := 0.U //DontCare
+  io.toStage2.bits.ctrlSigs.bit0AlignedSigC := 0.U //DontCare
 
   io.toStage2.bits.rawA := rawA
   io.toStage2.bits.rawB := rawB
@@ -232,7 +232,7 @@ class MulAddRecFN_pipeline_stage3(expWidth: Int, sigWidth: Int) extends Module {
   val sigSum =
     Cat(
       Mux(mulAddResult(sigWidth * 2),
-        highAlignedSigC + UInt(1),
+        highAlignedSigC + 1.U,
         highAlignedSigC
       ),
       mulAddResult(sigWidth * 2 - 1, 0),
@@ -243,7 +243,7 @@ class MulAddRecFN_pipeline_stage3(expWidth: Int, sigWidth: Int) extends Module {
   val CDom_absSigSum =
     Mux(doSubMags,
       ~sigSum(sigSumWidth - 1, sigWidth + 1),
-      Cat(UInt(0, 1),
+      Cat(0.U(1.W),
         //*** IF GAP IS REDUCED TO 1 BIT, MUST REDUCE THIS COMPONENT TO 1 BIT TOO:
         highAlignedSigC(sigWidth + 1, sigWidth),
         sigSum(sigSumWidth - 3, sigWidth + 2)
@@ -286,7 +286,7 @@ class MulAddRecFN_pipeline_stage3(expWidth: Int, sigWidth: Int) extends Module {
   io.toStage4.bits.notCDom_absSigSum := notCDom_absSigSum
   io.toStage4.bits.notCDom_reduced2AbsSigSum := notCDom_reduced2AbsSigSum
   io.toStage4.bits.notCDom_normDistReduced2 := notCDom_normDistReduced2
-  io.toStage4.bits.notCDom_reduced4SigExtra := DontCare //notCDom_reduced4SigExtra 
+  io.toStage4.bits.notCDom_reduced4SigExtra := 0.U //DontCare
 
 
   io.toStage4.bits.ctrlSigs := io.fromStage2.bits.ctrlSigs
@@ -398,7 +398,7 @@ class MulAddRecFN_pipeline_stage4(expWidth: Int, sigWidth: Int) extends Module {
       notCDom_mainSig(2, 0).orR || notCDom_reduced4SigExtra 
     )
   val notCDom_completeCancellation =
-    (notCDom_sig(sigWidth + 2, sigWidth + 1) === UInt(0))
+    (notCDom_sig(sigWidth + 2, sigWidth + 1) === 0.U)
   val notCDom_sign =
     Mux(notCDom_completeCancellation,
       roundingMode_min,
@@ -453,7 +453,7 @@ class MulAddRecFN_pipeline_stage5(expWidth: Int, sigWidth: Int) extends Module {
   })
   val roundRawFNToRecFN = Module(new RoundRawFNToRecFN(expWidth, sigWidth, 0))
   roundRawFNToRecFN.io.invalidExc   := io.fromStage4.bits.invalidExc
-  roundRawFNToRecFN.io.infiniteExc  := Bool(false)
+  roundRawFNToRecFN.io.infiniteExc  := false.B
   roundRawFNToRecFN.io.in           := io.fromStage4.bits.rawOut
   roundRawFNToRecFN.io.roundingMode := io.fromStage4.bits.roundingMode
   roundRawFNToRecFN.io.detectTininess := io.fromStage4.bits.detectTininess
@@ -466,20 +466,20 @@ class MulAddRecFN_pipeline_stage5(expWidth: Int, sigWidth: Int) extends Module {
 }
 
 class MulAddRecFN_pipelineInput(expWidth: Int, sigWidth: Int) extends Bundle {
-  val op = Bits(width = 2)
-  val a = Bits(width = expWidth + sigWidth + 1)
-  val b = Bits(width = expWidth + sigWidth + 1)
-  val c = Bits(width = expWidth + sigWidth + 1)
-  val roundingMode   = UInt(width = 3)
-  val detectTininess = UInt(width = 1)
+  val op = UInt(2.W)
+  val a = UInt((expWidth + sigWidth + 1).W)
+  val b = UInt((expWidth + sigWidth + 1).W)
+  val c = UInt((expWidth + sigWidth + 1).W)
+  val roundingMode = UInt(3.W)
+  val detectTininess = UInt(1.W)
 
   override def cloneType =
     (new MulAddRecFN_pipelineInput(expWidth, sigWidth)).asInstanceOf[this.type]
 }
 
 class MulAddRecFN_pipelineOutput(expWidth: Int, sigWidth: Int) extends Bundle {
-  val out = Bits(OUTPUT, expWidth + sigWidth + 1)
-  val exceptionFlags = Bits(OUTPUT, 5)
+  val out = Output(UInt((expWidth + sigWidth + 1).W))
+  val exceptionFlags = Output(UInt(5.W))
 
   override def cloneType =
     (new MulAddRecFN_pipelineOutput(expWidth, sigWidth)).asInstanceOf[this.type]
@@ -532,10 +532,4 @@ class MulAddRecFN_pipeline(expWidth: Int, sigWidth: Int) extends Module {
   stage2.io.mulSum := multiplier.io.sum
   stage2.io.mulCarry := multiplier.io.carry
 
-}
-
-object MulAddRecFN_pipeline extends App {
-  (new ChiselStage).execute(args, Seq(
-    ChiselGeneratorAnnotation(() => new MulAddRecFN_pipeline(11, 53))
-  ))
 }
