@@ -129,9 +129,11 @@ class OnTheFlyConv(len: Int) extends Module {
 
 class SigDivSqrt_srt4(len: Int) extends Module {
   val io = IO(new Bundle() {
+    val kill = Input(Bool())
     val in = Flipped(DecoupledIO(new Bundle() {
       val sigA, sigB = UInt(len.W)
       val isDiv = Bool()
+      val dsCycles = UInt(log2Up(len).W)
     }))
     val out = DecoupledIO(new Bundle() {
       val quotient = UInt(len.W)
@@ -148,7 +150,7 @@ class SigDivSqrt_srt4(len: Int) extends Module {
   val state = RegInit(s_idle)
   val cnt_next = Wire(UInt(log2Up((len+1)/2).W))
   val cnt = RegEnable(cnt_next, state===s_idle || state===s_recurrence)
-  cnt_next := Mux(state === s_idle, (len / 2).U, cnt - 1.U)
+  cnt_next := Mux(state === s_idle, io.in.bits.dsCycles, cnt - 1.U)
 
 
   val firstCycle = RegNext(io.in.fire())
@@ -167,6 +169,7 @@ class SigDivSqrt_srt4(len: Int) extends Module {
       when(io.out.fire()){ state := s_idle }
     }
   }
+  when(io.kill){ state := s_idle }
 
   val ws, wc = Reg(UInt((len+4).W))
 
@@ -247,6 +250,8 @@ class DivSqrtRawFN_srt4(expWidth: Int, sigWidth: Int) extends Module {
     val a = Input(new RawFloat(expWidth, sigWidth))
     val b = Input(new RawFloat(expWidth, sigWidth))
     val roundingMode = Input(UInt(3.W))
+    val sigBits = Input(UInt(log2Up(sigWidth).W))
+    val kill = Input(Bool())
     /*--------------------------------------------------------------------
     *--------------------------------------------------------------------*/
     val rawOutValid_div = Output(Bool())
@@ -326,6 +331,8 @@ class DivSqrtRawFN_srt4(expWidth: Int, sigWidth: Int) extends Module {
   val sigDs = Module(new SigDivSqrt_srt4(sigWidth + extraBits))
 
   sigDs.io.in.valid := entering_normalCase
+  sigDs.io.in.bits.dsCycles := (io.sigBits + extraBits.U) >> 1
+  sigDs.io.kill := io.kill
   sigDs.io.in.bits.sigA := Mux(oddSqrt_S || !io.sqrtOp, sigA_ext, sigA_ext >> 1)
     
   sigDs.io.in.bits.sigB := Cat(rawB_S.sig(sigWidth - 1, 0), 0.U(extraBits.W))
@@ -357,6 +364,7 @@ class DivSqrtRawFN_srt4(expWidth: Int, sigWidth: Int) extends Module {
       state := s_idle
     }
   }
+  when(io.kill){ state := s_idle }
 
   when(entering){
     sqrtOp_Z   := io.sqrtOp
@@ -401,6 +409,8 @@ DivSqrtRecFNToRaw_srt4(expWidth: Int, sigWidth: Int)
     val inReady        = Output(Bool())
     val inValid        = Input(Bool())
     val sqrtOp         = Input(Bool())
+    val sigBits        = Input(UInt(log2Up(sigWidth).W))
+    val kill           = Input(Bool())
     val a              = Input(UInt((expWidth + sigWidth + 1).W))
     val b              = Input(UInt((expWidth + sigWidth + 1).W))
     val roundingMode   = Input(UInt(3.W))
@@ -420,6 +430,8 @@ DivSqrtRecFNToRaw_srt4(expWidth: Int, sigWidth: Int)
   io.inReady := divSqrtRawFN.io.inReady
   divSqrtRawFN.io.inValid      := io.inValid
   divSqrtRawFN.io.sqrtOp       := io.sqrtOp
+  divSqrtRawFN.io.sigBits := io.sigBits
+  divSqrtRawFN.io.kill := io.kill
   divSqrtRawFN.io.a            := rawFloatFromRecFN(expWidth, sigWidth, io.a)
   divSqrtRawFN.io.b            := rawFloatFromRecFN(expWidth, sigWidth, io.b)
   divSqrtRawFN.io.roundingMode := io.roundingMode
@@ -466,6 +478,8 @@ DivSqrtRecFN_srt4(expWidth: Int, sigWidth: Int)
   io.inReady := divSqrtRecFNToRaw.io.inReady
   divSqrtRecFNToRaw.io.inValid      := io.inValid
   divSqrtRecFNToRaw.io.sqrtOp       := io.sqrtOp
+  divSqrtRecFNToRaw.io.sigBits := sigWidth.U
+  divSqrtRecFNToRaw.io.kill := false.B
   divSqrtRecFNToRaw.io.a            := io.a
   divSqrtRecFNToRaw.io.b            := io.b
   divSqrtRecFNToRaw.io.roundingMode := io.roundingMode
