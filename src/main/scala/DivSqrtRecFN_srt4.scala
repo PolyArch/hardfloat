@@ -4,7 +4,7 @@ import chisel3._
 import chisel3.util._
 
 
-class SrtTable extends chisel3.RawModule {
+class SrtTable extends Module {
   val io = IO(new Bundle() {
     val d = Input(UInt(3.W))
     val y = Input(UInt(8.W))
@@ -39,7 +39,7 @@ class SrtTable extends chisel3.RawModule {
   )
 }
 
-class OnTheFlyConv(len: Int) extends chisel3.RawModule {
+class OnTheFlyConv(len: Int) extends Module {
   val io = IO(new Bundle() {
     val resetSqrt = Input(Bool())
     val resetDiv = Input(Bool())
@@ -127,7 +127,7 @@ class OnTheFlyConv(len: Int) extends chisel3.RawModule {
   io.Q := Q
 }
 
-class SigDivSqrt_srt4(len: Int) extends chisel3.RawModule {
+class SigDivSqrt_srt4(len: Int) extends Module {
   val io = IO(new Bundle() {
     val kill = Input(Bool())
     val in = Flipped(DecoupledIO(new Bundle() {
@@ -240,7 +240,7 @@ class SigDivSqrt_srt4(len: Int) extends chisel3.RawModule {
 
 }
 
-class DivSqrtRawFN_srt4(expWidth: Int, sigWidth: Int) extends chisel3.RawModule {
+class DivSqrtRawFN_srt4(expWidth: Int, sigWidth: Int) extends Module {
   val io = IO(new Bundle {
     /*--------------------------------------------------------------------
     *--------------------------------------------------------------------*/
@@ -401,7 +401,7 @@ class DivSqrtRawFN_srt4(expWidth: Int, sigWidth: Int) extends chisel3.RawModule 
 
 class
 DivSqrtRecFNToRaw_srt4(expWidth: Int, sigWidth: Int)
-  extends chisel3.RawModule
+  extends Module
 {
   val io = IO(new Bundle {
     /*--------------------------------------------------------------------
@@ -449,9 +449,8 @@ DivSqrtRecFNToRaw_srt4(expWidth: Int, sigWidth: Int)
 *----------------------------------------------------------------------------*/
 
 class
-DivSqrtRecFN_srt4(expWidth: Int, sigWidth: Int)
-  extends chisel3.RawModule
-{
+DivSqrtRecFN_srt4(expWidth: Int, sigWidth: Int) extends Module {
+
   val io = IO(new Bundle {
     /*--------------------------------------------------------------------
     *--------------------------------------------------------------------*/
