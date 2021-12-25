@@ -5,7 +5,7 @@ import chisel3.util._
 import chisel3.stage.{ChiselGeneratorAnnotation, ChiselStage}
 import consts._
 
-class Stage1ToStage2IO(expWidth: Int, sigWidth: Int) extends Bundle
+class Stage1ToStage2IO(val expWidth: Int, val sigWidth: Int) extends Bundle
 {
   val rawA, rawB, rawC = new RawFloat(expWidth, sigWidth)
   val CAlignDist = Output(UInt())
@@ -14,11 +14,10 @@ class Stage1ToStage2IO(expWidth: Int, sigWidth: Int) extends Bundle
   val roundingMode = Output(UInt(3.W))
   val detectTininess = Output(Bool())
 
-  override def cloneType =
-    (new Stage1ToStage2IO(expWidth, sigWidth)).asInstanceOf[this.type]
+  //override def cloneType = (new Stage1ToStage2IO(expWidth, sigWidth)).asInstanceOf[this.type]
 }
 
-class Stage2ToStage3IO(expWidth: Int, sigWidth: Int) extends Bundle
+class Stage2ToStage3IO(val expWidth: Int, val sigWidth: Int) extends Bundle
 {
   val csaSum = Output(UInt())
   val csaCarry = Output(UInt())
@@ -26,11 +25,10 @@ class Stage2ToStage3IO(expWidth: Int, sigWidth: Int) extends Bundle
   val roundingMode = Output(UInt(3.W))
   val detectTininess = Output(Bool())
 
-  override def cloneType =
-    (new Stage2ToStage3IO(expWidth, sigWidth)).asInstanceOf[this.type]
+  //override def cloneType = (new Stage2ToStage3IO(expWidth, sigWidth)).asInstanceOf[this.type]
 }
 
-class Stage3ToStage4IO(expWidth: Int, sigWidth: Int) extends Bundle {
+class Stage3ToStage4IO(val expWidth: Int, val sigWidth: Int) extends Bundle {
   
   val CDom_absSigSum = Output(UInt())
   val CDom_absSigSumExtra = Output(Bool()) 
@@ -45,19 +43,17 @@ class Stage3ToStage4IO(expWidth: Int, sigWidth: Int) extends Bundle {
   val roundingMode = Output(UInt(3.W))
   val detectTininess = Output(Bool())
 
-  override def cloneType =
-    (new Stage3ToStage4IO(expWidth, sigWidth)).asInstanceOf[this.type]
+  //override def cloneType = (new Stage3ToStage4IO(expWidth, sigWidth)).asInstanceOf[this.type]
 }
 
-class Stage4ToStage5IO(expWidth: Int, sigWidth: Int) extends Bundle {
+class Stage4ToStage5IO(val expWidth: Int, val sigWidth: Int) extends Bundle {
   val ctrlSigs = Output(new MulAddRecFN_interIo(expWidth, sigWidth))
   val rawOut = Output(new RawFloat(expWidth, sigWidth+2))
   val invalidExc = Output(Bool())
   val roundingMode = Output(UInt(3.W))
   val detectTininess = Output(Bool())
 
-  override def cloneType =
-    (new Stage4ToStage5IO(expWidth, sigWidth)).asInstanceOf[this.type]
+  //override def cloneType = (new Stage4ToStage5IO(expWidth, sigWidth)).asInstanceOf[this.type]
 }
 
 class MulAddRecFN_pipeline_stage1(expWidth: Int, sigWidth: Int) extends Module {
@@ -465,7 +461,7 @@ class MulAddRecFN_pipeline_stage5(expWidth: Int, sigWidth: Int) extends Module {
   io.out.bits.exceptionFlags := roundRawFNToRecFN.io.exceptionFlags
 }
 
-class MulAddRecFN_pipelineInput(expWidth: Int, sigWidth: Int) extends Bundle {
+class MulAddRecFN_pipelineInput(val expWidth: Int, val sigWidth: Int) extends Bundle {
   val op = UInt(2.W)
   val a = UInt((expWidth + sigWidth + 1).W)
   val b = UInt((expWidth + sigWidth + 1).W)
@@ -473,16 +469,16 @@ class MulAddRecFN_pipelineInput(expWidth: Int, sigWidth: Int) extends Bundle {
   val roundingMode = UInt(3.W)
   val detectTininess = UInt(1.W)
 
-  override def cloneType =
-    (new MulAddRecFN_pipelineInput(expWidth, sigWidth)).asInstanceOf[this.type]
+//  override def cloneType =
+//    (new MulAddRecFN_pipelineInput(expWidth, sigWidth)).asInstanceOf[this.type]
 }
 
-class MulAddRecFN_pipelineOutput(expWidth: Int, sigWidth: Int) extends Bundle {
+class MulAddRecFN_pipelineOutput(val expWidth: Int, val sigWidth: Int) extends Bundle {
   val out = Output(UInt((expWidth + sigWidth + 1).W))
   val exceptionFlags = Output(UInt(5.W))
 
-  override def cloneType =
-    (new MulAddRecFN_pipelineOutput(expWidth, sigWidth)).asInstanceOf[this.type]
+//  override def cloneType =
+//    (new MulAddRecFN_pipelineOutput(expWidth, sigWidth)).asInstanceOf[this.type]
 }
 
 class MulAddRecFN_pipeline(expWidth: Int, sigWidth: Int) extends Module {
