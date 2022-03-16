@@ -13,7 +13,7 @@ resolvers ++= Seq(
   Resolver.sonatypeRepo("releases")
 )
 
-val defaultVersions = Map("chisel3" -> "3.3-SNAPSHOT")
+val defaultVersions = Map("chisel3" -> "3.4.+")
 
 // Provide a managed dependency on chisel if -DchiselVersion="" issupplied on the command line.
 libraryDependencies ++= (Seq("chisel3").map {
