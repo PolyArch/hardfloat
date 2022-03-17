@@ -450,7 +450,7 @@ DivSqrtRecFNToRaw_srt4(expWidth: Int, sigWidth: Int)
 
 class
 DivSqrtRecFN_srt4(expWidth: Int, sigWidth: Int)
-  extends chisel3.RawModule
+  extends Module
 {
   val io = IO(new Bundle {
     /*--------------------------------------------------------------------
